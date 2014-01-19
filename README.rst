@@ -46,20 +46,20 @@ If you want to compile ``lpcap`` with libpcap 1.1.0 you can use::
     make PCAP_VERSION=110 PCAP_CFLAGS="-I/path/to/libpcap/headers"
 
 Documentation
-_____________
+-------------
 
 Because ``lpcap`` mimics the libpcap API it does not provide a documentation of
 its own but rather rely on the official documentation of libpcap (which can be
 found `here <http://www.tcpdump.org/#documentation>`_). In short:
 
 - all the constants of libpcap (DLT_*, PCAP_*) can be found at the "root"
-  of the module
+  of the module.
 - all the functions of libpcap have their "pcap\_" prefix removed in
-  ``lpcap`` (i.e the equivalent of pcap_open_live() is open_live())
-- all the functions of libpcap that does not take a pcap_t pointer, a
+  ``lpcap`` (i.e the equivalent of pcap_open_live() is open_live()).
+- all the functions of libpcap which does not take a pcap_t pointer, a
   pcap_dump_t pointer or a bpf_program pointer as their first argument can be
-  found at the "root" of the module
-- all the functions of libpcap that take a pcap_t pointer as their first
+  found at the "root" of the module.
+- all the functions of libpcap which take a pcap_t pointer as their first
   argument are methods of the "Handle" objects returned by:
 
     - create()
@@ -67,19 +67,19 @@ found `here <http://www.tcpdump.org/#documentation>`_). In short:
     - open_live()
     - open_offline()
 
-- all the functions of libpcap that take a pcap_dumper_t pointer as their first
-  argument are methods of the "Dumper" objects returned by:
+- all the functions of libpcap which take a pcap_dumper_t pointer as their
+  first argument are methods of the "Dumper" objects returned by:
 
     - dump_open() (which is a method of "Handle" objects)
 
-- all the functions of libpcap that take a bpf_program pointer as their first
+- all the functions of libpcap which take a bpf_program pointer as their first
   argument are methods of the "Filter" objects returned by:
 
     - compile() (which is a method of "Handle" objects)
 
-- all the functions of libpcap that take an error buffer to store error message
-  (i.e functions which does not rely on geterr()) throw error when something
-  went wrong. Errors are string giving the reason of the error
+- all the functions of libpcap which take an error buffer to store error
+  messages (i.e functions which does not rely on geterr()) throw errors when
+  something is wrong. Errors are string giving the reason of the error.
 
 Examples
 --------
