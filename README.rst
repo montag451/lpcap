@@ -55,7 +55,7 @@ found `here <http://www.tcpdump.org/#documentation>`_). In short:
 - all the constants of libpcap (DLT_*, PCAP_*) can be found at the "root"
   of the module.
 - all the functions of libpcap have their "pcap\_" prefix removed in
-  ``lpcap`` (i.e the equivalent of pcap_open_live() is open_live()).
+  ``lpcap`` (e.g the equivalent of pcap_open_live() is open_live()).
 - all the functions of libpcap which does not take a pcap_t pointer, a
   pcap_dump_t pointer or a bpf_program pointer as their first argument can be
   found at the "root" of the module.
@@ -103,7 +103,7 @@ Examples
     print(h:loop(10, lpcap.dump, d))
     -- the three lines below are not really necessary since the GC will
     -- automatically execute these functions for us but it's a good practice to
-    -- release resources when they are needed anymore.
+    -- release resources when they are not needed anymore.
     f:freecode()
     d:close()
     h:close()

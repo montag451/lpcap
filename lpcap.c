@@ -48,9 +48,7 @@ static lua_Number lua_tonumberx (lua_State *L, int idx, int *isnum)
     }
 }
 
-#define luaL_newlibtable(L,l) \
-    lua_createtable(L, 0, sizeof(l)/sizeof((l)[0]) - 1)
-
+#define luaL_newlibtable(L,l) lua_createtable(L, 0, sizeof(l)/sizeof((l)[0]) - 1)
 #define luaL_newlib(L,l) (luaL_newlibtable(L,l), luaL_setfuncs(L,l,0))
 
 #endif
@@ -432,6 +430,16 @@ static int handle_get_selectable_fd(lua_State* L)
     return 1;
 }
 
+#if PCAP_API_VERSION >= 151
+
+static int handle_get_tstamp_precision(lua_State* L)
+{
+    lua_pushinteger(L, pcap_get_tstamp_precision(*check_handle(L, 1)));
+    return 1;
+}
+
+#endif
+
 static int handle_inject(lua_State* L)
 {
     pcap_t** h = check_handle(L, 1);
@@ -620,6 +628,16 @@ static int handle_setfilter(lua_State* L)
     return 1;
 }
 
+#if PCAP_API_VERSION >= 151
+
+static int handle_set_immediate_mode(lua_State* L)
+{
+    lua_pushinteger(L, pcap_set_immediate_mode(*check_handle(L, 1), luaL_checkinteger(L, 2)));
+    return 1;
+}
+
+#endif
+
 static int handle_setnonblock(lua_State* L)
 {
     pcap_t** h = check_handle(L, 1);
@@ -659,6 +677,16 @@ static int handle_set_timeout(lua_State* L)
     lua_pushinteger(L, pcap_set_timeout(*check_handle(L, 1), luaL_checkinteger(L, 2)));
     return 1;
 }
+
+#if PCAP_API_VERSION >= 151
+
+static int handle_set_tstamp_precision(lua_State* L)
+{
+    lua_pushinteger(L, pcap_set_tstamp_precision(*check_handle(L, 1), luaL_checkinteger(L, 2)));
+    return 1;
+}
+
+#endif
 
 #if PCAP_API_VERSION >= 120
 
@@ -714,6 +742,9 @@ static const luaL_Reg lpcap_handle_meth[] = {
     {"geterr", handle_geterr},
     {"getnonblock", handle_getnonblock},
     {"get_selectable_fd", handle_get_selectable_fd},
+#if PCAP_API_VERSION >= 151
+    {"get_tstamp_precision", handle_get_tstamp_precision},
+#endif
     {"inject", handle_inject},
     {"is_swapped", handle_is_swapped},
     {"list_datalinks", handle_list_datalinks},
@@ -730,11 +761,17 @@ static const luaL_Reg lpcap_handle_meth[] = {
     {"set_datalink", handle_set_datalink},
     {"setdirection", handle_setdirection},
     {"setfilter", handle_setfilter},
+#if PCAP_API_VERSION >= 151
+    {"set_immediate_mode", handle_set_immediate_mode},
+#endif
     {"setnonblock", handle_setnonblock},
     {"set_promisc", handle_set_promisc},
     {"set_rfmon", handle_set_rfmon},
     {"set_snaplen", handle_set_snaplen},
     {"set_timeout", handle_set_timeout},
+#if PCAP_API_VERSION >= 151
+    {"set_tstamp_precision", handle_set_tstamp_precision},
+#endif
 #if PCAP_API_VERSION >= 120
     {"set_tstamp_type", handle_set_tstamp_type},
 #endif
@@ -1056,6 +1093,10 @@ int luaopen_lpcap(lua_State* L)
 #ifdef DLT_BLUETOOTH_HCI_H4_WITH_PHDR
     lua_pushnumber(L, DLT_BLUETOOTH_HCI_H4_WITH_PHDR);
     lua_setfield(L, -2, "DLT_BLUETOOTH_HCI_H4_WITH_PHDR");
+#endif
+#ifdef DLT_BLUETOOTH_LE_LL
+    lua_pushnumber(L, DLT_BLUETOOTH_LE_LL);
+    lua_setfield(L, -2, "DLT_BLUETOOTH_LE_LL");
 #endif
 #ifdef DLT_CAN20B
     lua_pushnumber(L, DLT_CAN20B);
@@ -1417,14 +1458,6 @@ int luaopen_lpcap(lua_State* L)
     lua_pushnumber(L, DLT_LTALK);
     lua_setfield(L, -2, "DLT_LTALK");
 #endif
-#ifdef DLT_MATCHING_MAX
-    lua_pushnumber(L, DLT_MATCHING_MAX);
-    lua_setfield(L, -2, "DLT_MATCHING_MAX");
-#endif
-#ifdef DLT_MATCHING_MIN
-    lua_pushnumber(L, DLT_MATCHING_MIN);
-    lua_setfield(L, -2, "DLT_MATCHING_MIN");
-#endif
 #ifdef DLT_MFR
     lua_pushnumber(L, DLT_MFR);
     lua_setfield(L, -2, "DLT_MFR");
@@ -1549,6 +1582,10 @@ int luaopen_lpcap(lua_State* L)
     lua_pushnumber(L, DLT_RIO);
     lua_setfield(L, -2, "DLT_RIO");
 #endif
+#ifdef DLT_RTAC_SERIAL
+    lua_pushnumber(L, DLT_RTAC_SERIAL);
+    lua_setfield(L, -2, "DLT_RTAC_SERIAL");
+#endif
 #ifdef DLT_SCCP
     lua_pushnumber(L, DLT_SCCP);
     lua_setfield(L, -2, "DLT_SCCP");
@@ -1596,6 +1633,10 @@ int luaopen_lpcap(lua_State* L)
 #ifdef DLT_USB_LINUX_MMAPPED
     lua_pushnumber(L, DLT_USB_LINUX_MMAPPED);
     lua_setfield(L, -2, "DLT_USB_LINUX_MMAPPED");
+#endif
+#ifdef DLT_USBPCAP
+    lua_pushnumber(L, DLT_USBPCAP);
+    lua_setfield(L, -2, "DLT_USBPCAP");
 #endif
 #ifdef DLT_USER0
     lua_pushnumber(L, DLT_USER0);
@@ -1665,6 +1706,10 @@ int luaopen_lpcap(lua_State* L)
     lua_pushnumber(L, DLT_WIHART);
     lua_setfield(L, -2, "DLT_WIHART");
 #endif
+#ifdef DLT_WIRESHARK_UPPER_PDU
+    lua_pushnumber(L, DLT_WIRESHARK_UPPER_PDU);
+    lua_setfield(L, -2, "DLT_WIRESHARK_UPPER_PDU");
+#endif
 #ifdef DLT_X2E_SERIAL
     lua_pushnumber(L, DLT_X2E_SERIAL);
     lua_setfield(L, -2, "DLT_X2E_SERIAL");
@@ -1723,6 +1768,10 @@ int luaopen_lpcap(lua_State* L)
     lua_pushnumber(L, PCAP_ERROR_RFMON_NOTSUP);
     lua_setfield(L, -2, "PCAP_ERROR_RFMON_NOTSUP");
 #endif
+#ifdef PCAP_ERROR_TSTAMP_PRECISION_NOTSUP
+    lua_pushnumber(L, PCAP_ERROR_TSTAMP_PRECISION_NOTSUP);
+    lua_setfield(L, -2, "PCAP_ERROR_TSTAMP_PRECISION_NOTSUP");
+#endif
 #ifdef PCAP_IF_LOOPBACK
     lua_pushnumber(L, PCAP_IF_LOOPBACK);
     lua_setfield(L, -2, "PCAP_IF_LOOPBACK");
@@ -1750,6 +1799,14 @@ int luaopen_lpcap(lua_State* L)
 #ifdef PCAP_TSTAMP_HOST_LOWPREC
     lua_pushnumber(L, PCAP_TSTAMP_HOST_LOWPREC);
     lua_setfield(L, -2, "PCAP_TSTAMP_HOST_LOWPREC");
+#endif
+#ifdef PCAP_TSTAMP_PRECISION_MICRO
+    lua_pushnumber(L, PCAP_TSTAMP_PRECISION_MICRO);
+    lua_setfield(L, -2, "PCAP_TSTAMP_PRECISION_MICRO");
+#endif
+#ifdef PCAP_TSTAMP_PRECISION_NANO
+    lua_pushnumber(L, PCAP_TSTAMP_PRECISION_NANO);
+    lua_setfield(L, -2, "PCAP_TSTAMP_PRECISION_NANO");
 #endif
 #ifdef PCAP_VERSION_MAJOR
     lua_pushnumber(L, PCAP_VERSION_MAJOR);
