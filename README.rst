@@ -77,9 +77,13 @@ found `here <http://www.tcpdump.org/#documentation>`_). In short:
 
     - compile() (which is a method of "Handle" objects)
 
-- all the functions of libpcap which take an error buffer to store error
-  messages (i.e functions which does not rely on geterr()) throw errors when
-  something is wrong. Errors are string giving the reason of the error.
+Errors
+******
+
+The functions of ``lpcap`` throws errors on programming errors (e.g calling a
+function with arguments of the wrong type, calling methods on closed handles,
+...), otherwise they returns an error code or an error message depending on the
+underlying libpcap function which have been called.
 
 Examples
 --------
@@ -88,26 +92,35 @@ Examples
 
     local lpcap = require('lpcap')
     
-    local h = lpcap.open_live('wlan0', 65535, 1, 0)
+    local h = assert(lpcap.open_live(arg[1], 65535, 1, 10000))
     print(h:fileno())
     print(h:get_selectable_fd())
     print(h:datalink())
-    local d = h:dump_open('/tmp/test.pcap')
-    print(h:dispatch(-1, function(ctx, hdr, data)
-        print(hdr.caplen, hdr.len, hdr.ts.tv_sec, hdr.ts.tv_usec)
-        lpcap.dump(d, hdr, data)
-    end))
-    print(h:loop(10, lpcap.dump, d))
-    local f = h:compile('tcp port 443', 1, lpcap.PCAP_NETMASK_UNKNOWN)
-    h:setfilter(f)
-    print(h:loop(10, lpcap.dump, d))
+    local d = assert(h:dump_open(arg[2]))
+    print(h:dispatch(-1, function(ctx, hdr, data) print(hdr.caplen, hdr.len, hdr.ts.tv_sec, hdr.ts.tv_usec) end))
+    h:loop(10, lpcap.dump, d)
+    local f = h:compile(arg[3], 1, lpcap.PCAP_NETMASK_UNKNOWN)
+    if not f or h:setfilter(f) ~= 0 then
+        print(h:geterr())
+        os.exit(1, true)
+    end
+    h:loop(10, lpcap.dump, d)
     -- the three lines below are not really necessary since the GC will
     -- automatically execute these functions for us but it's a good practice to
     -- release resources when they are not needed anymore.
     f:freecode()
     d:close()
     h:close()
-    devs = lpcap.findalldevs()
+    local devs, err = lpcap.findalldevs()
+    if not devs then
+        if err == lpcap.PCAP_ERROR then
+            print(h:geterr())
+        else
+            print(err)
+        end
+        os.exit(1, true)
+    end
     for _, dev in ipairs(devs) do
         print(dev.name)
     end
+

@@ -91,21 +91,21 @@ static void pkthdr2table(lua_State* L, struct pcap_pkthdr* h)
 }
 
 /* Use at most 5 stack slots */
-static void table2pkthdr(lua_State* L, struct pcap_pkthdr* h)
+static void table2pkthdr(lua_State* L, int table, struct pcap_pkthdr* h)
 {
     int isnum;
 
-    lua_getfield(L, -1, "caplen");
+    lua_getfield(L, table, "caplen");
     h->caplen = lua_tonumberx(L, -1, &isnum);
     if (!isnum) {
         luaL_error(L, "\"caplen\" field is missing or not a number");
     }
-    lua_getfield(L, 2, "len");
+    lua_getfield(L, table, "len");
     h->len = lua_tonumberx(L, -1, &isnum);
     if (!isnum) {
         luaL_error(L, "\"len\" field is missing or not a number");
     }
-    lua_getfield(L, 2, "ts");
+    lua_getfield(L, table, "ts");
     if (!lua_istable(L, -1)) {
         luaL_error(L, "\"ts\" field is missing or not a table");
     }
@@ -125,7 +125,8 @@ static void table2pkthdr(lua_State* L, struct pcap_pkthdr* h)
 static void saddr2table(lua_State* L, struct sockaddr* sa)
 {
     lua_newtable(L);
-    switch(sa->sa_family) {
+    switch (sa->sa_family) {
+
         case AF_INET: {
             struct in_addr* addr = &((struct sockaddr_in*)sa)->sin_addr;
             char buf[INET_ADDRSTRLEN];
@@ -192,8 +193,7 @@ static int filter_offline_filter(lua_State* L)
 
     luaL_checktype(L, 2, LUA_TTABLE);
     data = luaL_checklstring(L, 3, &len);
-    lua_pushvalue(L, 2);
-    table2pkthdr(L, &h);
+    table2pkthdr(L, 2, &h);
     h.caplen = h.caplen > len ? len : h.caplen;
     lua_pushinteger(L, pcap_offline_filter(f, &h, (const u_char*)data));
     return 1;
@@ -417,10 +417,11 @@ static int handle_getnonblock(lua_State* L)
     int ret;
 
     ret = pcap_getnonblock(*check_handle(L, 1), errbuf);
-    if (ret == -1) {
-        return luaL_error(L, errbuf);
-    }
     lua_pushinteger(L, ret);
+    if (ret == -1) {
+        lua_pushstring(L, errbuf);
+        return 2;
+    }
     return 1;
 }
 
@@ -468,7 +469,6 @@ static int protected_list_datalinks(lua_State* L)
         lua_rawseti(L, -2, i + 1);
     }
     return 1;
-
 }
 
 static int handle_list_datalinks(lua_State* L)
@@ -479,9 +479,10 @@ static int handle_list_datalinks(lua_State* L)
     int nb_dlt;
 
     nb_dlt = pcap_list_datalinks(*h, &dlt_buf);
-    if (nb_dlt == -1) {
+    if (nb_dlt < 0) {
         lua_pushnil(L);
-        return 1;
+        lua_pushinteger(L, nb_dlt);
+        return 2;
     }
     lua_pushcfunction(L, protected_list_datalinks);
     lua_pushlightuserdata(L, dlt_buf);
@@ -518,9 +519,10 @@ static int handle_list_tstamp_types(lua_State* L)
     int nb_tst;
 
     nb_tst = pcap_list_tstamp_types(*h, &tst_buf);
-    if (nb_tst == -1) {
+    if (nb_tst < 0) {
         lua_pushnil(L);
-        return 1;
+        lua_pushinteger(L, nb_tst);
+        return 2;
     }
     lua_pushcfunction(L, protected_list_tstamp_types);
     lua_pushlightuserdata(L, tst_buf);
@@ -587,11 +589,9 @@ static int handle_next_ex(lua_State* L)
     if (ret == 1) {
         pkthdr2table(L, h);
         lua_pushlstring(L, (const char*)data, h->caplen);
-    } else {
-        lua_pushnil(L);
-        lua_pushnil(L);
+        return 3;
     }
-    return 3;
+    return 1;
 }
 
 static int handle_sendpacket(lua_State* L)
@@ -642,16 +642,14 @@ static int handle_setnonblock(lua_State* L)
 {
     pcap_t** h = check_handle(L, 1);
     int nonblock;
-    int ret;
     char errbuf[PCAP_ERRBUF_SIZE];
 
     nonblock = lua_isnone(L, 2) ? 1 : lua_toboolean(L, 2);
-    ret = pcap_setnonblock(*h, nonblock, errbuf);
-    if (ret == -1) {
-        return luaL_error(L, errbuf);
+    if (pcap_setnonblock(*h, nonblock, errbuf) == -1) {
+        lua_pushstring(L, errbuf);
+        return 1;
     }
-    lua_pushinteger(L, ret);
-    return 1;
+    return 0;
 }
 
 static int handle_set_promisc(lua_State* L)
@@ -799,7 +797,9 @@ static int lpcap_create(lua_State* L)
     h = lua_newuserdata(L, sizeof(*h));
     *h = pcap_create(source, errbuf);
     if (*h == NULL) {
-        return luaL_error(L, errbuf);
+        lua_pushnil(L);
+        lua_pushstring(L, errbuf);
+        return 2;
     }
     luaL_setmetatable(L, LPCAP_HANDLE_TNAME);
     return 1;
@@ -832,8 +832,7 @@ static int lpcap_dump(lua_State* L)
 
     luaL_checktype(L, 2, LUA_TTABLE);
     data = luaL_checklstring(L, 3, &len);
-    lua_pushvalue(L, 2);
-    table2pkthdr(L, &h);
+    table2pkthdr(L, 2, &h);
     h.caplen = h.caplen > len ? len : h.caplen;
     pcap_dump((u_char*)*d, &h, (u_char*)data);
     return 0;
@@ -887,7 +886,9 @@ static int lpcap_findalldevs(lua_State* L)
     int status;
 
     if (pcap_findalldevs(&devs, errbuf) != 0) {
-        return luaL_error(L, errbuf);
+        lua_pushnil(L);
+        lua_pushstring(L, errbuf);
+        return 2;
     }
     lua_pushcfunction(L, protected_findalldevs);
     lua_pushlightuserdata(L, devs);
@@ -912,7 +913,9 @@ static int lpcap_lookupdev(lua_State* L)
 
     dev = pcap_lookupdev(errbuf);
     if (dev == NULL) {
-        return luaL_error(L, errbuf);
+        lua_pushnil(L);
+        lua_pushstring(L, errbuf);
+        return 2;
     }
     lua_pushstring(L, dev);
     return 1;
@@ -926,11 +929,15 @@ static int lpcap_lookupnet(lua_State* L)
     char errbuf[PCAP_ERRBUF_SIZE];
 
     if (pcap_lookupnet(dev, &net, &mask, errbuf) != 0) {
-        return luaL_error(L, errbuf);
+        lua_pushnil(L);
+        lua_pushnil(L);
+        lua_pushstring(L, errbuf);
+        return 3;
+    } else {
+        lua_pushnumber(L, net);
+        lua_pushnumber(L, mask);
+        return 2;
     }
-    lua_pushnumber(L, net);
-    lua_pushnumber(L, mask);
-    return 2;
 }
 
 static int lpcap_open_dead(lua_State* L)
@@ -942,7 +949,8 @@ static int lpcap_open_dead(lua_State* L)
     h = lua_newuserdata(L, sizeof(*h));
     *h = pcap_open_dead(linktype, snaplen);
     if (*h == NULL) {
-        return luaL_error(L, "out of memory");
+        lua_pushnil(L);
+        return 1;
     }
     luaL_setmetatable(L, LPCAP_HANDLE_TNAME);
     return 1;
@@ -960,7 +968,9 @@ static int lpcap_open_live(lua_State* L)
     h = lua_newuserdata(L, sizeof(*h));
     *h = pcap_open_live(device, snaplen, promisc, to_ms, errbuf);
     if (*h == NULL) {
-        return luaL_error(L, errbuf);
+        lua_pushnil(L);
+        lua_pushstring(L, errbuf);
+        return 2;
     }
     luaL_setmetatable(L, LPCAP_HANDLE_TNAME);
     return 1;
@@ -975,7 +985,9 @@ static int lpcap_open_offline(lua_State* L)
     h = lua_newuserdata(L, sizeof(*h));
     *h = pcap_open_offline(fname, errbuf);
     if (*h == NULL) {
-        return luaL_error(L, errbuf);
+        lua_pushnil(L);
+        lua_pushstring(L, errbuf);
+        return 2;
     }
     luaL_setmetatable(L, LPCAP_HANDLE_TNAME);
     return 1;
